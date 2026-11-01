@@ -1,9 +1,4 @@
 import {
-  dataUrlByteSize,
-  formatBytes,
-  isDataUrl,
-} from "./image.ts";
-import {
   DEPRECATED_MODIFIERS,
   type TutorialDoc,
   type TutorialStep,
@@ -142,19 +137,10 @@ export function checkTutorial(doc: TutorialDoc): TutorialIssue[] {
 
     const imageUrl = step.imageUrl.trim();
     if (imageUrl) {
-      if (isDataUrl(imageUrl)) {
-        const bytes = dataUrlByteSize(imageUrl);
-        if (bytes > 1024 * 1024) {
-          add(
-            "warn",
-            `Embedded image is ${formatBytes(bytes)}. MakeCode recommends images of 1 MB or less.`,
-            step.id,
-          );
-        }
-      } else if (imageUrl.startsWith("/")) {
+      if (imageUrl.startsWith("/")) {
         add(
           "warn",
-          "Relative image paths (/static/…) only work in official editor repositories. Use an absolute https URL or drop the image into this step.",
+          "Relative image paths (/static/…) only work in official editor repositories. Use an absolute https URL for a GitHub-hosted tutorial.",
           step.id,
         );
       } else if (/^http:\/\//i.test(imageUrl)) {

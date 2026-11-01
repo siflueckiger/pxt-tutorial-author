@@ -568,59 +568,6 @@ body {
 
 /* Image preview ---------------------------------------------------------- */
 
-.dropzone {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 14px 12px;
-  text-align: center;
-  background: #fff;
-  border: 1.5px dashed var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.dropzone:hover,
-.dropzone:focus-visible {
-  border-color: var(--accent);
-  background: #f5f9ff;
-  outline: none;
-}
-
-.dropzone--active {
-  border-color: var(--accent);
-  background: #e9f2ff;
-}
-
-.dropzone__label {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.dropzone__hint {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.imageField {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.imageField__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.field__hint--error {
-  color: var(--danger);
-}
-
 .imagePreview {
   display: block;
   max-width: 100%;
