@@ -465,6 +465,255 @@ body {
   border-radius: var(--radius);
 }
 
+/* Tutorial settings ------------------------------------------------------ */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings__details {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.settings__summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings__summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings__summary::before {
+  content: "▸";
+  font-size: 10px;
+}
+
+.settings__details[open] .settings__summary::before {
+  content: "▾";
+}
+
+.settings__count {
+  margin-left: auto;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.settings__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 10px 12px;
+}
+
+.checkbox--block {
+  align-items: flex-start;
+}
+
+.checkbox--block input {
+  margin-top: 2px;
+}
+
+.checkbox__label {
+  display: block;
+  font-size: 12.5px;
+}
+
+.checkbox__hint {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.field__note {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Instruction bullets ---------------------------------------------------- */
+
+.instructions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.instructions__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.instructions__icon {
+  flex: 0 0 104px;
+  width: 104px;
+}
+
+/* Step diffs ------------------------------------------------------------- */
+
+.steps__diffAdd {
+  color: #1a7f37;
+  font-weight: 600;
+}
+
+.steps__diffRemove {
+  color: #b35900;
+  font-weight: 600;
+}
+
+/* Checks ----------------------------------------------------------------- */
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.checks__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checks__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.checks__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--panel-strong);
+  border-radius: 999px;
+}
+
+.checks__ok {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.checks__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checks__button,
+.checks__static {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.checks__button {
+  cursor: pointer;
+}
+
+.checks__button:hover {
+  background: var(--panel-strong);
+}
+
+.checks__badge {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+}
+
+.checks__badge--warn {
+  color: #8a3b00;
+  background: #fff1e0;
+}
+
+.checks__badge--tip {
+  color: #0b4f8a;
+  background: #e6f0fb;
+}
+
+.checks__message {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* Test run banner -------------------------------------------------------- */
+
+.testBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.testBanner--starting,
+.testBanner--running {
+  color: #084fa8;
+  background: #e6f0fb;
+}
+
+.testBanner--completed {
+  color: #1a7f37;
+  background: #e7f6ea;
+}
+
+.testBanner--error {
+  color: #8a1f11;
+  background: #fdecea;
+}
+
+.testBanner__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Responsive ------------------------------------------------------------ */
 
 @media (max-width: 860px) {

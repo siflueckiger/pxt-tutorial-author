@@ -1,6 +1,9 @@
 import {
+  ICON_SUGGESTIONS,
   STEP_KINDS,
+  STEP_MODIFIERS,
   type StepKind,
+  type StepModifier,
   type TutorialStep,
 } from "../model/types";
 
@@ -9,6 +12,7 @@ interface StepEditorProps {
   onChange: (patch: Partial<TutorialStep>) => void;
   onCapture: () => void;
   busy: boolean;
+  captureDisabled: boolean;
 }
 
 export function StepEditor({
@@ -16,8 +20,37 @@ export function StepEditor({
   onChange,
   onCapture,
   busy,
+  captureDisabled,
 }: StepEditorProps) {
   const kind = STEP_KINDS.find((option) => option.value === step.kind);
+  const modifier = STEP_MODIFIERS.find(
+    (option) => option.value === step.modifier,
+  );
+
+  const updateInstruction = (
+    index: number,
+    patch: { icon?: string; text?: string },
+  ) => {
+    onChange({
+      instructions: step.instructions.map((instruction, current) =>
+        current === index ? { ...instruction, ...patch } : instruction,
+      ),
+    });
+  };
+
+  const addInstruction = () => {
+    onChange({
+      instructions: [...step.instructions, { icon: "loops", text: "" }],
+    });
+  };
+
+  const removeInstruction = (index: number) => {
+    onChange({
+      instructions: step.instructions.filter(
+        (_, current) => current !== index,
+      ),
+    });
+  };
 
   return (
     <section className="editor">
@@ -26,7 +59,7 @@ export function StepEditor({
         <input
           className="input"
           value={step.title}
-          onChange={(e) => onChange({ title: e.target.value })}
+          onChange={(event) => onChange({ title: event.target.value })}
         />
       </label>
 
@@ -37,7 +70,99 @@ export function StepEditor({
           rows={3}
           value={step.description}
           placeholder="What should the learner do in this step?"
-          onChange={(e) => onChange({ description: e.target.value })}
+          onChange={(event) => onChange({ description: event.target.value })}
+        />
+      </label>
+
+      <div className="field">
+        <span className="field__label">Step modifier</span>
+        <select
+          className="input"
+          value={step.modifier}
+          onChange={(event) =>
+            onChange({ modifier: event.target.value as StepModifier })
+          }
+        >
+          {STEP_MODIFIERS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span className="field__hint">{modifier?.hint}</span>
+        <span className="field__note">
+          @fullscreen and @unplugged were renamed to @showhint and @showdialog.
+        </span>
+      </div>
+
+      <div className="field">
+        <div className="field__row">
+          <span className="field__label">Instruction bullets</span>
+          <button
+            type="button"
+            className="btn btn--small"
+            onClick={addInstruction}
+          >
+            + Instruction
+          </button>
+        </div>
+
+        {step.instructions.length === 0 ? (
+          <span className="field__hint">
+            Optional scannable bullets with a leading icon, e.g. “loops” or
+            “mouse pointer”.
+          </span>
+        ) : (
+          <ul className="instructions">
+            {step.instructions.map((instruction, index) => (
+              <li key={index} className="instructions__row">
+                <input
+                  className="input instructions__icon"
+                  value={instruction.icon}
+                  placeholder="icon"
+                  list="tutorial-icon-suggestions"
+                  onChange={(event) =>
+                    updateInstruction(index, { icon: event.target.value })
+                  }
+                />
+                <input
+                  className="input"
+                  value={instruction.text}
+                  placeholder="Instruction text"
+                  onChange={(event) =>
+                    updateInstruction(index, { text: event.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  className="iconBtn iconBtn--danger"
+                  title="Remove instruction"
+                  onClick={() => removeInstruction(index)}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <datalist id="tutorial-icon-suggestions">
+          {ICON_SUGGESTIONS.map((icon) => (
+            <option key={icon} value={icon} />
+          ))}
+        </datalist>
+      </div>
+
+      <label className="field">
+        <span className="field__label">Accordion hint</span>
+        <textarea
+          className="input input--area"
+          rows={2}
+          value={step.accordionHint}
+          placeholder="Optional. The first line is the summary learners click."
+          onChange={(event) =>
+            onChange({ accordionHint: event.target.value })
+          }
         />
       </label>
 
@@ -46,7 +171,9 @@ export function StepEditor({
         <select
           className="input"
           value={step.kind}
-          onChange={(e) => onChange({ kind: e.target.value as StepKind })}
+          onChange={(event) =>
+            onChange({ kind: event.target.value as StepKind })
+          }
         >
           {STEP_KINDS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -64,7 +191,12 @@ export function StepEditor({
             type="button"
             className="btn btn--small"
             onClick={onCapture}
-            disabled={busy}
+            disabled={busy || captureDisabled}
+            title={
+              captureDisabled
+                ? "Exit the test run to capture from the authoring workspace"
+                : undefined
+            }
           >
             Capture from workspace
           </button>
@@ -75,7 +207,7 @@ export function StepEditor({
           spellCheck={false}
           value={step.code}
           placeholder="basic.showIcon(IconNames.Heart)"
-          onChange={(e) => onChange({ code: e.target.value })}
+          onChange={(event) => onChange({ code: event.target.value })}
         />
       </div>
     </section>

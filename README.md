@@ -23,12 +23,25 @@ project's files (`main.ts`, `main.blocks`, …) whenever the workspace is saved.
 - **+ Add step** — reads the current workspace (`main.ts`, falling back to
   `main.blocks`) and appends a step with that code.
 - **Insert / move / delete** steps in any order.
-- Edit each step's **title**, **description**, and **block type**
-  (`blocks`, `template`, or `ghost`).
+- **Edit each step's** title, description, block type (`blocks`, `template` or
+  `ghost`), modifier (`@showhint`, `@showdialog`), instruction bullets with
+  icons (`- :loops: …`), and accordion hints (`~hint … hint~`).
+- **Tutorial options** — toggle MakeCode metadata (`@explicitHints`, `@diffs`,
+  `@hideIteration`, `@hideDone`, `@hideToolbox`, `@unifiedToolbox`).
+- **Test run** — runs the tutorial you just built inside the embedded MakeCode
+  editor via the driver's `importTutorial`, so you can click through the real
+  learner experience without publishing anything. A banner tracks progress
+  (steps loaded, current step, completion) using MakeCode's `tutorialevent`s;
+  **Back to authoring** restores your project.
 - **Capture from workspace** to refresh a single step after changing blocks.
+- **Checks** — lightweight authoring hints: long captions, identical
+  consecutive steps, empty block steps, deprecated modifiers, template
+  placement, and a scaffold-fade tip.
+- **Step diffs** — every step shows how many lines it adds and removes
+  compared with the previous step.
 - **Export Markdown** — live preview, copy to clipboard, or download
   `tutorial.md`.
-- Tutorial steps and the editor project persist in `localStorage`, so a reload
+- Tutorial steps and editor projects persist in `localStorage`, so a reload
   keeps your work.
 
 ## Requirements
@@ -64,10 +77,13 @@ GitHub Pages serves the `gh-pages` branch (with `.nojekyll`).
 3. Change the blocks for the next step and press **+ Add step** again.
 4. Reorder steps with the arrow buttons; use **＋** to insert a step and **×**
    to delete one.
-5. Press **Export Markdown**, then copy or download `tutorial.md`.
-6. Commit the file to your tutorial repository (e.g. as `README.md` or
+5. Press **Test run** to click through the tutorial in the editor. When you are
+   done, press **Back to authoring**.
+6. Fix anything the **Checks** panel flags, then press **Export Markdown** and
+   copy or download `tutorial.md`.
+7. Commit the file to your tutorial repository (e.g. as `README.md` or
    `tutorial.md`).
-7. Share it with:
+8. Share it with:
 
    ```
    https://makecode.microbit.org/#tutorial:https://github.com/<user>/<repo>
@@ -86,21 +102,30 @@ GitHub Pages serves the `gh-pages` branch (with `.nojekyll`).
 - **Snapshots are cumulative.** "Add step" captures the *entire* current
   workspace. That is usually what you want for a running tutorial, but you can
   trim a step's code manually in the panel.
+- **Test runs are in-memory.** The generated Markdown is passed straight to the
+  embedded editor, so there is no GitHub/gist publishing, no MakeCode cloud
+  cache, and no auth required. Test-run projects are not saved as your
+  authoring project.
 - The exported Markdown is not written to any file automatically; use
   **Export** and commit it yourself.
-- The editor project is stored in `localStorage` under this site's origin.
-  Clearing site data resets the embedded project and tutorial.
+- Editor projects and the tutorial document are stored in `localStorage`.
+  Clearing site data resets them.
+- `@fullscreen` and `@unplugged` are deprecated by MakeCode; use `@showhint`
+  and `@showdialog`. The Checks panel warns if an old modifier is pasted into
+  a step.
 
 ## Project structure
 
 ```
 index.html
 src/
-  pxt/useMakeCodeEditor.ts  embeds MakeCode, tracks saved project files
-  model/types.ts            tutorial document model
+  pxt/useMakeCodeEditor.ts  embeds MakeCode, test runs, project persistence
+  model/types.ts            tutorial document model + metadata options
   model/markdown.ts         workspace capture + Markdown generation
-  model/storage.ts          localStorage serialize / parse
-  components/               StepList, StepEditor, ExportPanel
+  model/checks.ts           lightweight authoring checks + step diffs
+  model/storage.ts          localStorage serialize / parse (+ v1 migration)
+  components/               StepList, StepEditor, TutorialSettings,
+                            ChecksPanel, ExportPanel
   App.tsx                   two-pane UI (editor + authoring panel)
-scripts/check-markdown.mts  logic checks for capture + Markdown output
+scripts/check-markdown.mts  logic checks for Markdown, diffs and checks
 ```

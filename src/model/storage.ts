@@ -1,12 +1,16 @@
 import {
   createEmptyDoc,
   newStepId,
+  type InstructionIcon,
   type StepKind,
+  type StepModifier,
   type TutorialDoc,
+  type TutorialMeta,
   type TutorialStep,
-} from "./types";
+} from "./types.ts";
 
 const STEP_KINDS: StepKind[] = ["blocks", "template", "ghost"];
+const STEP_MODIFIERS: StepModifier[] = ["none", "showhint", "showdialog"];
 
 export function serializeDoc(doc: TutorialDoc): string {
   return JSON.stringify(doc, null, 2);
@@ -15,6 +19,10 @@ export function serializeDoc(doc: TutorialDoc): string {
 /**
  * Parses a previously stored document, tolerating missing/old fields so the
  * panel keeps working if the schema grows.
+ *
+ * Version 1 documents stored `explicitHints` at the top level and had no
+ * `meta`, `modifier`, `instructions` or `accordionHint` fields; those are
+ * migrated here.
  */
 export function parseDoc(text: string | undefined): TutorialDoc | undefined {
   if (!text) return undefined;
@@ -30,7 +38,7 @@ export function parseDoc(text: string | undefined): TutorialDoc | undefined {
 
   const doc: TutorialDoc = createEmptyDoc();
   doc.title = typeof raw.title === "string" ? raw.title : "";
-  doc.explicitHints = raw.explicitHints === true;
+  doc.meta = normalizeMeta(raw);
   doc.steps = raw.steps
     .filter(isRecord)
     .map((step, index) => normalizeStep(step, index));
@@ -38,8 +46,27 @@ export function parseDoc(text: string | undefined): TutorialDoc | undefined {
   return doc;
 }
 
-function normalizeStep(raw: Record<string, unknown>, index: number): TutorialStep {
+function normalizeMeta(raw: Record<string, unknown>): TutorialMeta {
+  const meta = isRecord(raw.meta) ? raw.meta : undefined;
+  const legacyExplicitHints = raw.explicitHints === true;
+  return {
+    explicitHints:
+      meta?.explicitHints === true ||
+      (meta === undefined && legacyExplicitHints),
+    diffs: meta?.diffs === true,
+    hideIteration: meta?.hideIteration === true,
+    hideDone: meta?.hideDone === true,
+    hideToolbox: meta?.hideToolbox === true,
+    unifiedToolbox: meta?.unifiedToolbox === true,
+  };
+}
+
+function normalizeStep(
+  raw: Record<string, unknown>,
+  index: number,
+): TutorialStep {
   const kind = typeof raw.kind === "string" ? raw.kind : "blocks";
+  const modifier = typeof raw.modifier === "string" ? raw.modifier : "none";
   return {
     id: typeof raw.id === "string" && raw.id ? raw.id : newStepId(),
     title:
@@ -49,7 +76,24 @@ function normalizeStep(raw: Record<string, unknown>, index: number): TutorialSte
     description: typeof raw.description === "string" ? raw.description : "",
     code: typeof raw.code === "string" ? raw.code : "",
     kind: STEP_KINDS.includes(kind as StepKind) ? (kind as StepKind) : "blocks",
+    modifier: STEP_MODIFIERS.includes(modifier as StepModifier)
+      ? (modifier as StepModifier)
+      : "none",
+    instructions: normalizeInstructions(raw.instructions),
+    accordionHint:
+      typeof raw.accordionHint === "string" ? raw.accordionHint : "",
   };
+}
+
+function normalizeInstructions(raw: unknown): InstructionIcon[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(isRecord)
+    .map((item) => ({
+      icon: typeof item.icon === "string" ? item.icon : "",
+      text: typeof item.text === "string" ? item.text : "",
+    }))
+    .filter((item) => item.text.trim().length > 0 || item.icon.trim().length > 0);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
