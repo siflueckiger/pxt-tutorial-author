@@ -55,3 +55,21 @@ function normalizeStep(raw: Record<string, unknown>, index: number): TutorialSte
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
+
+const DOC_STORAGE_KEY = "pxt-tutorial-author:doc";
+
+export function loadDocFromStorage(): TutorialDoc | undefined {
+  try {
+    return parseDoc(window.localStorage.getItem(DOC_STORAGE_KEY) ?? undefined);
+  } catch {
+    return undefined;
+  }
+}
+
+export function saveDocToStorage(doc: TutorialDoc): void {
+  try {
+    window.localStorage.setItem(DOC_STORAGE_KEY, serializeDoc(doc));
+  } catch {
+    // Ignore storage failures; in-memory editing still works.
+  }
+}

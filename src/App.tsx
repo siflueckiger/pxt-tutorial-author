@@ -1,98 +1,45 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EditorExtensionClient } from "./pxt/extensionClient";
 import { extractWorkspaceCode, tutorialToMarkdown } from "./model/markdown";
-import { parseDoc, serializeDoc } from "./model/storage";
+import { loadDocFromStorage, saveDocToStorage } from "./model/storage";
 import {
-  createDemoDoc,
   createEmptyDoc,
   newStepId,
   type TutorialDoc,
   type TutorialStep,
 } from "./model/types";
+import { useMakeCodeEditor } from "./pxt/useMakeCodeEditor";
 import { StepList } from "./components/StepList";
 import { StepEditor } from "./components/StepEditor";
 import { ExportPanel } from "./components/ExportPanel";
 
-const client = new EditorExtensionClient();
-
 export default function App() {
-  const [doc, setDoc] = useState<TutorialDoc>(createEmptyDoc);
-  const [hydrated, setHydrated] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | undefined>();
-  const [status, setStatus] = useState("Connecting…");
+  const { iframeRef, iframeSrc, ready, requestLatestFiles } = useMakeCodeEditor();
+
+  const [doc, setDoc] = useState<TutorialDoc>(
+    () => loadDocFromStorage() ?? createEmptyDoc(),
+  );
+  const [selectedId, setSelectedId] = useState<string | undefined>(
+    () => doc.steps[0]?.id,
+  );
+  const [status, setStatus] = useState("Loading editor…");
   const [busy, setBusy] = useState(false);
   const [showExport, setShowExport] = useState(false);
 
-  const hydratedRef = useRef(false);
-  const saveTimer = useRef<number | undefined>(undefined);
+  const readyRef = useRef(false);
 
-  // Load the stored tutorial (or seed a demo when running outside MakeCode).
+  // Announce editor readiness without clobbering later capture messages.
   useEffect(() => {
-    let cancelled = false;
+    if (ready && !readyRef.current) {
+      readyRef.current = true;
+      setStatus("Editor ready");
+    }
+  }, [ready]);
 
-    (async () => {
-      try {
-        await client.whenReady();
-        const resp = await client.readCode();
-        if (cancelled) return;
-
-        const loaded = parseDoc(resp.json);
-        const initial =
-          loaded ?? (client.isHosted ? createEmptyDoc() : createDemoDoc());
-
-        setDoc(initial);
-        setSelectedId(initial.steps[0]?.id);
-        hydratedRef.current = true;
-        setHydrated(true);
-        setStatus(
-          client.isHosted ? "Connected to MakeCode" : "Local preview mode",
-        );
-      } catch {
-        if (cancelled) return;
-        setDoc(createDemoDoc());
-        hydratedRef.current = true;
-        setHydrated(true);
-        setStatus("Could not reach the editor");
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Persist (debounced) into the extension's JSON sidecar.
+  // Persist the tutorial document locally.
   useEffect(() => {
-    if (!hydratedRef.current) return;
-
-    window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => {
-      client
-        .writeCode({
-          code: "// Tutorial Author data lives in the companion JSON file.\n",
-          json: serializeDoc(doc),
-        })
-        .then(() => setStatus("Saved"))
-        .catch(() => setStatus("Save failed"));
-    }, 500);
-
-    return () => window.clearTimeout(saveTimer.current);
+    const timer = window.setTimeout(() => saveDocToStorage(doc), 300);
+    return () => window.clearTimeout(timer);
   }, [doc]);
-
-  // Re-read when the editor re-shows the panel.
-  useEffect(() => {
-    const handleShown = () => {
-      client
-        .readCode()
-        .then((resp) => {
-          const reloaded = parseDoc(resp.json);
-          if (reloaded) setDoc(reloaded);
-        })
-        .catch(() => undefined);
-    };
-    client.on("shown", handleShown);
-    return () => client.off("shown", handleShown);
-  }, []);
 
   const selectedStep = useMemo(
     () => doc.steps.find((step) => step.id === selectedId),
@@ -103,67 +50,64 @@ export default function App() {
     setDoc((current) => updater(current));
   }, []);
 
-  const captureCurrentCode = useCallback(async (): Promise<string> => {
-    const files = await client.readUserCode();
-    return extractWorkspaceCode(files);
-  }, []);
-
   const addStep = useCallback(async () => {
     setBusy(true);
     setStatus("Reading workspace…");
     try {
-      const code = await captureCurrentCode();
-      const step: TutorialStep = {
-        id: newStepId(),
-        title: `Step ${doc.steps.length + 1}`,
-        description: "",
-        code,
-        kind: "blocks",
-      };
-      updateDoc((current) => ({ ...current, steps: [...current.steps, step] }));
-      setSelectedId(step.id);
+      const code = extractWorkspaceCode(await requestLatestFiles());
+      const id = newStepId();
+      updateDoc((current) => ({
+        ...current,
+        steps: [
+          ...current.steps,
+          {
+            id,
+            title: `Step ${current.steps.length + 1}`,
+            description: "",
+            code,
+            kind: "blocks",
+          },
+        ],
+      }));
+      setSelectedId(id);
       setStatus(code ? "Captured current blocks" : "Added empty step (no blocks found)");
-    } catch {
-      setStatus("Could not read the workspace");
     } finally {
       setBusy(false);
     }
-  }, [captureCurrentCode, doc.steps.length, updateDoc]);
+  }, [requestLatestFiles, updateDoc]);
 
   const insertAfter = useCallback(
     async (afterId: string) => {
       setBusy(true);
       setStatus("Reading workspace…");
       try {
-        const code = await captureCurrentCode();
-        const step: TutorialStep = {
-          id: newStepId(),
-          title: "New step",
-          description: "",
-          code,
-          kind: "blocks",
-        };
+        const code = extractWorkspaceCode(await requestLatestFiles());
+        const id = newStepId();
         updateDoc((current) => {
-          const index = current.steps.findIndex((s) => s.id === afterId);
+          const index = current.steps.findIndex((step) => step.id === afterId);
           const steps = [...current.steps];
-          steps.splice(index + 1, 0, step);
+          steps.splice(index + 1, 0, {
+            id,
+            title: "New step",
+            description: "",
+            code,
+            kind: "blocks",
+          });
           return { ...current, steps };
         });
-        setSelectedId(step.id);
+        setSelectedId(id);
         setStatus(code ? "Captured current blocks" : "Added empty step (no blocks found)");
-      } catch {
-        setStatus("Could not read the workspace");
       } finally {
         setBusy(false);
       }
     },
-    [captureCurrentCode, updateDoc],
+    [requestLatestFiles, updateDoc],
   );
 
   const moveStep = useCallback(
     (id: string, direction: -1 | 1) => {
       updateDoc((current) => {
-        const index = current.steps.findIndex((s) => s.id === id);
+        const index = current.steps.findIndex((step) => step.id === id);
         const target = index + direction;
         if (index < 0 || target < 0 || target >= current.steps.length) {
           return current;
@@ -180,7 +124,7 @@ export default function App() {
     (id: string) => {
       updateDoc((current) => ({
         ...current,
-        steps: current.steps.filter((s) => s.id !== id),
+        steps: current.steps.filter((step) => step.id !== id),
       }));
       setSelectedId((current) => (current === id ? undefined : current));
     },
@@ -191,7 +135,9 @@ export default function App() {
     (id: string, patch: Partial<TutorialStep>) => {
       updateDoc((current) => ({
         ...current,
-        steps: current.steps.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+        steps: current.steps.map((step) =>
+          step.id === id ? { ...step, ...patch } : step,
+        ),
       }));
     },
     [updateDoc],
@@ -202,105 +148,116 @@ export default function App() {
       setBusy(true);
       setStatus("Reading workspace…");
       try {
-        const code = await captureCurrentCode();
+        const code = extractWorkspaceCode(await requestLatestFiles());
         updateStep(id, { code });
         setStatus(code ? "Refreshed step from workspace" : "Workspace is empty");
-      } catch {
-        setStatus("Could not read the workspace");
       } finally {
         setBusy(false);
       }
     },
-    [captureCurrentCode, updateStep],
+    [requestLatestFiles, updateStep],
   );
 
   const markdown = useMemo(() => tutorialToMarkdown(doc), [doc]);
 
   return (
     <div className="app">
-      <header className="app__header">
-        <div className="app__titleRow">
-          <h1 className="app__title">Tutorial Author</h1>
-          <span className={"app__status" + (busy ? " app__status--busy" : "")}>
-            {status}
-          </span>
+      <header className="topbar">
+        <div className="topbar__left">
+          <span className="topbar__brand">Tutorial Author</span>
+          <span className="topbar__status">{status}</span>
         </div>
-
-        <label className="field">
-          <span className="field__label">Tutorial title</span>
-          <input
-            className="input"
-            value={doc.title}
-            placeholder="e.g. Flashing heart"
-            onChange={(e) =>
-              updateDoc((current) => ({ ...current, title: e.target.value }))
-            }
-          />
-        </label>
-
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={doc.explicitHints}
-            onChange={(e) =>
-              updateDoc((current) => ({
-                ...current,
-                explicitHints: e.target.checked,
-              }))
-            }
-          />
-          <span>Show hints by default (@explicitHints)</span>
-        </label>
-
-        <div className="app__actions">
+        <div className="topbar__actions">
           <button
+            type="button"
             className="btn btn--primary"
             onClick={addStep}
-            disabled={busy || !hydrated}
+            disabled={busy || !ready}
           >
             + Add step
           </button>
           <button
+            type="button"
             className="btn"
             onClick={() => setShowExport(true)}
-            disabled={!hydrated}
           >
             Export Markdown
           </button>
         </div>
       </header>
 
-      <main className="app__body">
-        <StepList
-          steps={doc.steps}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          onMove={moveStep}
-          onDelete={deleteStep}
-          onInsertAfter={insertAfter}
-        />
-
-        {selectedStep ? (
-          <StepEditor
-            step={selectedStep}
-            onChange={(patch) => updateStep(selectedStep.id, patch)}
-            onCapture={() => captureIntoStep(selectedStep.id)}
-            busy={busy}
+      <div className="workspace">
+        <div className="editorPane">
+          <iframe
+            ref={iframeRef}
+            src={iframeSrc}
+            title="MakeCode editor"
+            allow="usb; autoplay; camera; microphone;"
           />
-        ) : (
-          <div className="empty">
-            {doc.steps.length === 0
-              ? "Build some blocks in the editor, then press “Add step”."
-              : "Select a step to edit it."}
+          {!ready ? (
+            <div className="editorPane__loading">Loading MakeCode…</div>
+          ) : null}
+        </div>
+
+        <aside className="authorPane">
+          <div className="authorPane__head">
+            <label className="field">
+              <span className="field__label">Tutorial title</span>
+              <input
+                className="input"
+                value={doc.title}
+                placeholder="e.g. Flashing heart"
+                onChange={(e) =>
+                  updateDoc((current) => ({ ...current, title: e.target.value }))
+                }
+              />
+            </label>
+
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={doc.explicitHints}
+                onChange={(e) =>
+                  updateDoc((current) => ({
+                    ...current,
+                    explicitHints: e.target.checked,
+                  }))
+                }
+              />
+              <span>Show hints by default (@explicitHints)</span>
+            </label>
           </div>
-        )}
-      </main>
+
+          <div className="authorPane__scroll">
+            <StepList
+              steps={doc.steps}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onMove={moveStep}
+              onDelete={deleteStep}
+              onInsertAfter={insertAfter}
+            />
+
+            {selectedStep ? (
+              <StepEditor
+                step={selectedStep}
+                onChange={(patch) => updateStep(selectedStep.id, patch)}
+                onCapture={() => captureIntoStep(selectedStep.id)}
+                busy={busy}
+              />
+            ) : (
+              <div className="empty">
+                {doc.steps.length === 0
+                  ? "Build some blocks in the editor, then press “Add step”."
+                  : "Select a step to edit it."}
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
 
       {showExport ? (
-        <ExportPanel
-          markdown={markdown}
-          onClose={() => setShowExport(false)}
-        />
+        <ExportPanel markdown={markdown} onClose={() => setShowExport(false)} />
       ) : null}
     </div>
   );

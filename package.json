@@ -12,6 +12,7 @@
     "deploy": "npm run build && gh-pages -d dist --dotfiles"
   },
   "dependencies": {
+    "@microbit/makecode-embed": "^0.7.5",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
