@@ -26,6 +26,8 @@ export interface TutorialStep {
   id: string;
   title: string;
   description: string;
+  /** Optional image shown with the step. Absolute https URLs are recommended. */
+  imageUrl: string;
   /** Code (or block XML) snapshot for this step. */
   code: string;
   /** Which markdown fence the code is emitted under. */
@@ -74,7 +76,7 @@ export const STEP_MODIFIERS: {
   {
     value: "showhint",
     label: "@showhint — overlay",
-    hint: "When learners reach this step, its content pops up in an overlay above the editor instead of the caption. Works best for a dramatic introduction with an image; with plain text it mainly looks like an emphasised message.",
+    hint: "When learners reach this step, its content pops up in an overlay above the editor instead of the caption. Add an image URL to fill the overlay — that is what makes it feel dramatic. With plain text it mostly looks like an emphasised message.",
   },
   {
     value: "showdialog",
@@ -104,6 +106,7 @@ export function createStep(
     id: newStepId(),
     title: "",
     description: "",
+    imageUrl: "",
     code: "",
     kind: "blocks",
     modifier: "none",

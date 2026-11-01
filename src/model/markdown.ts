@@ -38,6 +38,12 @@ export function tutorialToMarkdown(doc: TutorialDoc): string {
       lines.push("");
     }
 
+    const imageUrl = step.imageUrl.trim();
+    if (imageUrl) {
+      lines.push(markdownImage(step));
+      lines.push("");
+    }
+
     const accordion = accordionLines(step.accordionHint);
     if (accordion.length > 0) {
       lines.push(...accordion);
@@ -61,6 +67,11 @@ function headingFor(step: TutorialStep, index: number): string {
   return step.modifier && step.modifier !== "none"
     ? `${title} @${step.modifier}`
     : title;
+}
+
+function markdownImage(step: TutorialStep): string {
+  const alt = (step.title.trim() || "Tutorial image").replace(/[[\]]/g, "");
+  return `![${alt}](${step.imageUrl.trim()})`;
 }
 
 function accordionLines(text: string): string[] {

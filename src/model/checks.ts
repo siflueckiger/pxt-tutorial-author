@@ -135,6 +135,33 @@ export function checkTutorial(doc: TutorialDoc): TutorialIssue[] {
       );
     }
 
+    const imageUrl = step.imageUrl.trim();
+    if (imageUrl) {
+      if (imageUrl.startsWith("/")) {
+        add(
+          "warn",
+          "Relative image paths (/static/…) only work in official editor repositories. Use an absolute https URL for a GitHub-hosted tutorial.",
+          step.id,
+        );
+      } else if (/^http:\/\//i.test(imageUrl)) {
+        add(
+          "warn",
+          "Use https:// for image URLs; insecure http may be blocked.",
+          step.id,
+        );
+      } else if (!/^https:\/\//i.test(imageUrl)) {
+        add("warn", "Image URL should be an absolute https:// URL.", step.id);
+      }
+
+      if (step.modifier === "none") {
+        add(
+          "tip",
+          "Images on normal steps are only visible behind the hint button. Use @showhint or @showdialog to show the image right away.",
+          step.id,
+        );
+      }
+    }
+
     const previous = doc.steps[index - 1];
     if (
       previous &&

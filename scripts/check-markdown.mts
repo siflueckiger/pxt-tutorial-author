@@ -19,6 +19,7 @@ const doc: TutorialDoc = {
       id: "a",
       title: "Make it flash",
       description: "Show a heart.",
+      imageUrl: "https://example.com/heart.png",
       code: "basic.showIcon(IconNames.Heart)",
       kind: "blocks",
       modifier: "none",
@@ -28,6 +29,7 @@ const doc: TutorialDoc = {
       id: "b",
       title: "Pause between icons",
       description: "",
+      imageUrl: "",
       code: "basic.showIcon(IconNames.Heart)\nbasic.pause(200)",
       kind: "blocks",
       modifier: "showhint",
@@ -37,6 +39,7 @@ const doc: TutorialDoc = {
       id: "c",
       title: "",
       description: "Shown in toolbox",
+      imageUrl: "",
       code: "basic.pause(100)",
       kind: "ghost",
       modifier: "none",
@@ -46,6 +49,7 @@ const doc: TutorialDoc = {
       id: "d",
       title: "Starter",
       description: "Pre-loaded workspace",
+      imageUrl: "",
       code: "basic.showIcon(IconNames.SmallHeart)",
       kind: "template",
       modifier: "none",
@@ -72,6 +76,12 @@ const checks: [string, boolean][] = [
   [
     "has blocks fence",
     md.includes("```blocks\nbasic.showIcon(IconNames.Heart)\n```"),
+  ],
+  [
+    "has step image after description",
+    md.includes(
+      "Show a heart.\n\n![Make it flash](https://example.com/heart.png)",
+    ),
   ],
   ["has ghost fence", md.includes("```ghost\nbasic.pause(100)\n```")],
   ["has template fence", md.includes("```template")],
@@ -174,6 +184,7 @@ const cleanDoc: TutorialDoc = {
       id: "only",
       title: "One",
       description: "Do the thing.",
+      imageUrl: "",
       code: "basic.showIcon(IconNames.Heart)",
       kind: "blocks",
       modifier: "none",
@@ -182,6 +193,84 @@ const cleanDoc: TutorialDoc = {
   ],
 };
 checks.push(["clean tutorial has no issues", checkTutorial(cleanDoc).length === 0]);
+
+// --- Image URL checks ---------------------------------------------------
+
+const relativeImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Relative image",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl: "/static/agent-tower.png",
+      modifier: "showhint",
+    },
+  ],
+};
+checks.push([
+  "flags relative image URLs",
+  checkTutorial(relativeImageDoc).some((issue) =>
+    issue.message.includes("Relative image paths"),
+  ),
+]);
+
+const httpImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Insecure image",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl: "http://example.com/a.png",
+      modifier: "showhint",
+    },
+  ],
+};
+checks.push([
+  "flags http image URLs",
+  checkTutorial(httpImageDoc).some((issue) =>
+    issue.message.includes("https://"),
+  ),
+]);
+
+const hiddenImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Hidden image",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl: "https://example.com/a.png",
+      modifier: "none",
+    },
+  ],
+};
+checks.push([
+  "tips about images hidden behind the hint button",
+  checkTutorial(hiddenImageDoc).some((issue) =>
+    issue.message.includes("hint button"),
+  ),
+]);
+
+const visibleImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Visible image",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl: "https://example.com/a.png",
+      modifier: "showhint",
+    },
+  ],
+};
+checks.push([
+  "accepts https images on @showhint steps",
+  checkTutorial(visibleImageDoc).every(
+    (issue) => !issue.message.toLowerCase().includes("image"),
+  ),
+]);
 
 let failed = 0;
 for (const [name, ok] of checks) {

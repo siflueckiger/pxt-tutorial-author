@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   STEP_KINDS,
   STEP_MODIFIERS,
@@ -47,6 +48,23 @@ export function StepEditor({
           onChange={(event) => onChange({ description: event.target.value })}
         />
       </label>
+
+      <div className="field">
+        <span className="field__label">Image URL</span>
+        <input
+          className="input"
+          value={step.imageUrl}
+          placeholder="https://raw.githubusercontent.com/…/intro.png"
+          onChange={(event) => onChange({ imageUrl: event.target.value })}
+        />
+        <span className="field__hint">
+          Absolute https URL. Shown by @showhint / @showdialog, or behind the
+          hint button on normal steps.
+        </span>
+        {step.imageUrl.trim() ? (
+          <ImagePreview url={step.imageUrl.trim()} />
+        ) : null}
+      </div>
 
       <div className="field">
         <span className="field__label">Step modifier</span>
@@ -133,5 +151,30 @@ export function StepEditor({
         />
       </div>
     </section>
+  );
+}
+
+function ImagePreview({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
+  if (failed) {
+    return (
+      <span className="imagePreview imagePreview--error">
+        Preview failed to load — check the URL.
+      </span>
+    );
+  }
+
+  return (
+    <img
+      className="imagePreview"
+      src={url}
+      alt="Step image preview"
+      onError={() => setFailed(true)}
+    />
   );
 }

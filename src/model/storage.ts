@@ -72,6 +72,7 @@ function normalizeStep(
         ? raw.title
         : `Step ${index + 1}`,
     description: typeof raw.description === "string" ? raw.description : "",
+    imageUrl: typeof raw.imageUrl === "string" ? raw.imageUrl : "",
     code: typeof raw.code === "string" ? raw.code : "",
     kind: STEP_KINDS.includes(kind as StepKind) ? (kind as StepKind) : "blocks",
     modifier: STEP_MODIFIERS.includes(modifier as StepModifier)
