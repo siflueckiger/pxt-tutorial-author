@@ -1,31 +1,64 @@
-import { tutorialToMarkdown, extractWorkspaceCode } from "../src/model/markdown.ts";
-import type { TutorialDoc } from "../src/model/types.ts";
+import {
+  tutorialToMarkdown,
+  extractWorkspaceCode,
+} from "../src/model/markdown.ts";
+import {
+  captionText,
+  checkTutorial,
+  diffCode,
+  CAPTION_SOFT_LIMIT,
+} from "../src/model/checks.ts";
+import { DEFAULT_META, type TutorialDoc } from "../src/model/types.ts";
+import {
+  dataUrlByteSize,
+  formatBytes,
+  isDataUrl,
+} from "../src/model/image.ts";
 
 const doc: TutorialDoc = {
-  version: 1,
+  version: 2,
   title: "Flashing heart",
-  explicitHints: true,
+  meta: { ...DEFAULT_META, explicitHints: true, diffs: true },
   steps: [
     {
       id: "a",
-      title: "Step 1",
+      title: "Make it flash",
       description: "Show a heart.",
+      imageUrl: "https://example.com/heart.png",
       code: "basic.showIcon(IconNames.Heart)",
       kind: "blocks",
+      modifier: "none",
+      accordionHint: "Why a heart?\nIt is a friendly icon.",
     },
     {
       id: "b",
-      title: "",
+      title: "Pause between icons",
       description: "",
-      code: "basic.showIcon(IconNames.Heart)",
-      kind: "template",
+      imageUrl: "",
+      code: "basic.showIcon(IconNames.Heart)\nbasic.pause(200)",
+      kind: "blocks",
+      modifier: "showhint",
+      accordionHint: "",
     },
     {
       id: "c",
-      title: "Only helper blocks",
+      title: "",
       description: "Shown in toolbox",
+      imageUrl: "",
       code: "basic.pause(100)",
       kind: "ghost",
+      modifier: "none",
+      accordionHint: "",
+    },
+    {
+      id: "d",
+      title: "Starter",
+      description: "Pre-loaded workspace",
+      imageUrl: "",
+      code: "basic.showIcon(IconNames.SmallHeart)",
+      kind: "template",
+      modifier: "none",
+      accordionHint: "",
     },
   ],
 };
@@ -37,25 +70,285 @@ console.log(md);
 const checks: [string, boolean][] = [
   ["starts with title", md.startsWith("# Flashing heart\n")],
   ["has explicitHints", md.includes("### @explicitHints true")],
-  ["has step heading", md.includes("## Step 1")],
-  ["has description", md.includes("Show a heart.")],
-  ["has blocks fence", md.includes("```blocks\nbasic.showIcon(IconNames.Heart)\n```")],
-  ["has template fence", md.includes("```template")],
+  ["has diffs", md.includes("### @diffs true")],
+  ["does not emit disabled metadata", !md.includes("@hideIteration")],
+  ["has step heading", md.includes("## Make it flash\n")],
+  ["has step modifier", md.includes("## Pause between icons @showhint")],
+  [
+    "has accordion with indented continuation",
+    md.includes("~hint Why a heart?\n  It is a friendly icon.\nhint~"),
+  ],
+  [
+    "has blocks fence",
+    md.includes("```blocks\nbasic.showIcon(IconNames.Heart)\n```"),
+  ],
+  [
+    "has step image after description",
+    md.includes(
+      "Show a heart.\n\n![Make it flash](https://example.com/heart.png)",
+    ),
+  ],
   ["has ghost fence", md.includes("```ghost\nbasic.pause(100)\n```")],
-  ["blank title falls back to Step 2", md.includes("## Step 2")],
-  ["empty description omitted", !md.includes("\n\n\n")],
+  ["has template fence", md.includes("```template")],
+  ["blank title falls back to Step 3", md.includes("## Step 3\n")],
   ["ends with one newline", md.endsWith("```\n")],
 ];
 
 const ws1 = extractWorkspaceCode({
   "main.ts": "basic.showIcon(IconNames.Heart)\n",
 });
-const ws2 = extractWorkspaceCode({ "main.ts": "// empty\n", "main.blocks": "<xml/>" });
+const ws2 = extractWorkspaceCode({
+  "main.ts": "// empty\n",
+  "main.blocks": "<xml/>",
+});
 const ws3 = extractWorkspaceCode({ "main.ts": "//\n" });
 
 checks.push(["prefers main.ts", ws1 === "basic.showIcon(IconNames.Heart)"]);
 checks.push(["falls back to main.blocks", ws2 === "<xml/>"]);
 checks.push(["empty when nothing", ws3 === ""]);
+
+// --- Code diffs ---------------------------------------------------------
+
+const addOnly = diffCode("a\nb", "a\nb\nc");
+checks.push(["diff counts additions", addOnly?.added === 1 && addOnly?.removed === 0]);
+
+const removeOnly = diffCode("a\nb", "b");
+checks.push([
+  "diff counts removals",
+  removeOnly?.added === 0 && removeOnly?.removed === 1,
+]);
+
+checks.push(["no diff for first step", diffCode(undefined, "x") === undefined]);
+
+// --- Learning-design checks --------------------------------------------
+
+const captionShort = captionText({
+  ...doc.steps[0],
+  description: "Short instruction.",
+});
+checks.push(["caption text includes description", captionShort === "Short instruction."]);
+
+const longCaptionDoc: TutorialDoc = {
+  version: 2,
+  title: "Long captions",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      description: "x".repeat(CAPTION_SOFT_LIMIT + 10),
+    },
+  ],
+};
+checks.push([
+  "flags long captions",
+  checkTutorial(longCaptionDoc).some((issue) => issue.message.includes("Caption is")),
+]);
+
+const duplicateDoc: TutorialDoc = {
+  version: 2,
+  title: "Duplicates",
+  meta: { ...DEFAULT_META },
+  steps: [
+    { ...doc.steps[0], title: "One" },
+    { ...doc.steps[1], title: "Two", code: doc.steps[0].code },
+  ],
+};
+checks.push([
+  "flags identical consecutive steps",
+  checkTutorial(duplicateDoc).some((issue) =>
+    issue.message.includes("identical to the previous step"),
+  ),
+]);
+
+const deprecatedDoc: TutorialDoc = {
+  version: 2,
+  title: "Deprecated",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      title: "Intro",
+      description: "Welcome! @fullscreen",
+      code: "",
+    },
+  ],
+};
+checks.push([
+  "flags deprecated modifiers",
+  checkTutorial(deprecatedDoc).some((issue) =>
+    issue.message.includes("@showhint"),
+  ),
+]);
+
+const cleanDoc: TutorialDoc = {
+  version: 2,
+  title: "Clean",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      id: "only",
+      title: "One",
+      description: "Do the thing.",
+      imageUrl: "",
+      code: "basic.showIcon(IconNames.Heart)",
+      kind: "blocks",
+      modifier: "none",
+      accordionHint: "",
+    },
+  ],
+};
+checks.push(["clean tutorial has no issues", checkTutorial(cleanDoc).length === 0]);
+
+// --- Image URL checks ---------------------------------------------------
+
+const relativeImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Relative image",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl: "/static/agent-tower.png",
+      modifier: "showhint",
+    },
+  ],
+};
+checks.push([
+  "flags relative image URLs",
+  checkTutorial(relativeImageDoc).some((issue) =>
+    issue.message.includes("Relative image paths"),
+  ),
+]);
+
+const httpImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Insecure image",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl: "http://example.com/a.png",
+      modifier: "showhint",
+    },
+  ],
+};
+checks.push([
+  "flags http image URLs",
+  checkTutorial(httpImageDoc).some((issue) =>
+    issue.message.includes("https://"),
+  ),
+]);
+
+const hiddenImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Hidden image",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl: "https://example.com/a.png",
+      modifier: "none",
+    },
+  ],
+};
+checks.push([
+  "tips about images hidden behind the hint button",
+  checkTutorial(hiddenImageDoc).some((issue) =>
+    issue.message.includes("hint button"),
+  ),
+]);
+
+const visibleImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Visible image",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl: "https://example.com/a.png",
+      modifier: "showhint",
+    },
+  ],
+};
+checks.push([
+  "accepts https images on @showhint steps",
+  checkTutorial(visibleImageDoc).every(
+    (issue) => !issue.message.toLowerCase().includes("image"),
+  ),
+]);
+
+// --- Embedded (data URL) images ----------------------------------------
+
+checks.push([
+  "detects data URLs",
+  isDataUrl("data:image/png;base64,AAAA") && !isDataUrl("https://example.com/a.png"),
+]);
+checks.push([
+  "computes base64 byte size",
+  dataUrlByteSize("data:image/png;base64,AAAA") === 3 &&
+    dataUrlByteSize("data:image/png;base64,AA==") === 1 &&
+    dataUrlByteSize("https://example.com/a.png") === 0,
+]);
+checks.push(["formats bytes", formatBytes(2048) === "2 KB"]);
+
+const embeddedImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Embedded",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      title: "One",
+      imageUrl: "data:image/png;base64,AAAA",
+      modifier: "showhint",
+    },
+  ],
+};
+const embeddedMd = tutorialToMarkdown(embeddedImageDoc);
+checks.push([
+  "emits data URL images",
+  embeddedMd.includes("![One](data:image/png;base64,AAAA)"),
+]);
+
+const bigImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Big embedded",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl:
+        "data:image/png;base64," +
+        "A".repeat(Math.ceil(((1024 * 1024) / 3) * 4) + 100),
+      modifier: "showhint",
+    },
+  ],
+};
+checks.push([
+  "flags embedded images over 1 MB",
+  checkTutorial(bigImageDoc).some((issue) =>
+    issue.message.includes("Embedded image"),
+  ),
+]);
+
+const embeddedHiddenDoc: TutorialDoc = {
+  version: 2,
+  title: "Hidden embedded",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl: "data:image/png;base64,AAAA",
+      modifier: "none",
+    },
+  ],
+};
+checks.push([
+  "tips about embedded images hidden behind the hint button",
+  checkTutorial(embeddedHiddenDoc).some((issue) =>
+    issue.message.includes("hint button"),
+  ),
+]);
 
 let failed = 0;
 for (const [name, ok] of checks) {

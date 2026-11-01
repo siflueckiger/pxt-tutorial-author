@@ -1,10 +1,11 @@
-import type { TutorialDoc, TutorialStep } from "./types";
+import { DEFAULT_META, type TutorialDoc, type TutorialStep } from "./types.ts";
 
 /**
  * Renders a tutorial document into MakeCode tutorial Markdown.
  *
- * Each step becomes a `## Heading` and its code is emitted in a fenced block
- * whose language tag matches the step kind (`blocks`, `template` or `ghost`).
+ * Tutorial-wide options become `### @KEY VALUE` metadata lines, each step
+ * becomes a `## Heading`, and its code is emitted in a fenced block whose
+ * language tag matches the step kind (`blocks`, `template` or `ghost`).
  */
 export function tutorialToMarkdown(doc: TutorialDoc): string {
   const lines: string[] = [];
@@ -12,8 +13,18 @@ export function tutorialToMarkdown(doc: TutorialDoc): string {
   lines.push(`# ${doc.title.trim() || "Untitled tutorial"}`);
   lines.push("");
 
-  if (doc.explicitHints) {
-    lines.push("### @explicitHints true");
+  const meta = doc.meta ?? DEFAULT_META;
+  const metadata: [string, boolean][] = [
+    ["explicitHints", meta.explicitHints],
+    ["diffs", meta.diffs],
+    ["hideIteration", meta.hideIteration],
+    ["hideDone", meta.hideDone],
+    ["hideToolbox", meta.hideToolbox],
+    ["unifiedToolbox", meta.unifiedToolbox],
+  ];
+  for (const [key, enabled] of metadata) {
+    if (!enabled) continue;
+    lines.push(`### @${key} true`);
     lines.push("");
   }
 
@@ -24,6 +35,18 @@ export function tutorialToMarkdown(doc: TutorialDoc): string {
     const description = step.description.trim();
     if (description) {
       lines.push(description);
+      lines.push("");
+    }
+
+    const imageUrl = step.imageUrl.trim();
+    if (imageUrl) {
+      lines.push(markdownImage(step));
+      lines.push("");
+    }
+
+    const accordion = accordionLines(step.accordionHint);
+    if (accordion.length > 0) {
+      lines.push(...accordion);
       lines.push("");
     }
 
@@ -40,7 +63,28 @@ export function tutorialToMarkdown(doc: TutorialDoc): string {
 }
 
 function headingFor(step: TutorialStep, index: number): string {
-  return step.title.trim() || `Step ${index + 1}`;
+  const title = step.title.trim() || `Step ${index + 1}`;
+  return step.modifier && step.modifier !== "none"
+    ? `${title} @${step.modifier}`
+    : title;
+}
+
+function markdownImage(step: TutorialStep): string {
+  const alt = (step.title.trim() || "Tutorial image").replace(/[[\]]/g, "");
+  return `![${alt}](${step.imageUrl.trim()})`;
+}
+
+function accordionLines(text: string): string[] {
+  const trimmed = (text ?? "").trim();
+  if (!trimmed) return [];
+
+  const [first, ...rest] = trimmed.split("\n");
+  const lines = [`~hint ${first}`];
+  for (const line of rest) {
+    lines.push(line.trim() ? `  ${line}` : "");
+  }
+  lines.push("hint~");
+  return lines;
 }
 
 /**

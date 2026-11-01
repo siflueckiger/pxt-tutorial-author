@@ -1,19 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { checkTutorial } from "./model/checks";
 import { extractWorkspaceCode, tutorialToMarkdown } from "./model/markdown";
 import { loadDocFromStorage, saveDocToStorage } from "./model/storage";
 import {
   createEmptyDoc,
-  newStepId,
+  createStep,
   type TutorialDoc,
+  type TutorialMeta,
   type TutorialStep,
 } from "./model/types";
 import { useMakeCodeEditor } from "./pxt/useMakeCodeEditor";
 import { StepList } from "./components/StepList";
 import { StepEditor } from "./components/StepEditor";
 import { ExportPanel } from "./components/ExportPanel";
+import { TutorialSettings } from "./components/TutorialSettings";
+import { ChecksPanel } from "./components/ChecksPanel";
 
 export default function App() {
-  const { iframeRef, iframeSrc, ready, requestLatestFiles } = useMakeCodeEditor();
+  const {
+    iframeRef,
+    iframeSrc,
+    ready,
+    requestLatestFiles,
+    tutorial,
+    importTutorial,
+    exitTutorial,
+  } = useMakeCodeEditor();
 
   const [doc, setDoc] = useState<TutorialDoc>(
     () => loadDocFromStorage() ?? createEmptyDoc(),
@@ -26,6 +38,7 @@ export default function App() {
   const [showExport, setShowExport] = useState(false);
 
   const readyRef = useRef(false);
+  const testing = tutorial.phase !== "idle";
 
   // Announce editor readiness without clobbering later capture messages.
   useEffect(() => {
@@ -46,35 +59,41 @@ export default function App() {
     [doc.steps, selectedId],
   );
 
+  const issues = useMemo(() => checkTutorial(doc), [doc]);
+
   const updateDoc = useCallback((updater: (current: TutorialDoc) => TutorialDoc) => {
     setDoc((current) => updater(current));
   }, []);
+
+  const updateMeta = useCallback(
+    (patch: Partial<TutorialMeta>) => {
+      updateDoc((current) => ({
+        ...current,
+        meta: { ...current.meta, ...patch },
+      }));
+    },
+    [updateDoc],
+  );
 
   const addStep = useCallback(async () => {
     setBusy(true);
     setStatus("Reading workspace…");
     try {
       const code = extractWorkspaceCode(await requestLatestFiles());
-      const id = newStepId();
+      const step = createStep({
+        title: `Step ${doc.steps.length + 1}`,
+        code,
+      });
       updateDoc((current) => ({
         ...current,
-        steps: [
-          ...current.steps,
-          {
-            id,
-            title: `Step ${current.steps.length + 1}`,
-            description: "",
-            code,
-            kind: "blocks",
-          },
-        ],
+        steps: [...current.steps, step],
       }));
-      setSelectedId(id);
+      setSelectedId(step.id);
       setStatus(code ? "Captured current blocks" : "Added empty step (no blocks found)");
     } finally {
       setBusy(false);
     }
-  }, [requestLatestFiles, updateDoc]);
+  }, [doc.steps.length, requestLatestFiles, updateDoc]);
 
   const insertAfter = useCallback(
     async (afterId: string) => {
@@ -82,20 +101,14 @@ export default function App() {
       setStatus("Reading workspace…");
       try {
         const code = extractWorkspaceCode(await requestLatestFiles());
-        const id = newStepId();
+        const step = createStep({ title: "New step", code });
         updateDoc((current) => {
-          const index = current.steps.findIndex((step) => step.id === afterId);
+          const index = current.steps.findIndex((item) => item.id === afterId);
           const steps = [...current.steps];
-          steps.splice(index + 1, 0, {
-            id,
-            title: "New step",
-            description: "",
-            code,
-            kind: "blocks",
-          });
+          steps.splice(index + 1, 0, step);
           return { ...current, steps };
         });
-        setSelectedId(id);
+        setSelectedId(step.id);
         setStatus(code ? "Captured current blocks" : "Added empty step (no blocks found)");
       } finally {
         setBusy(false);
@@ -160,6 +173,24 @@ export default function App() {
 
   const markdown = useMemo(() => tutorialToMarkdown(doc), [doc]);
 
+  const startTestRun = useCallback(async () => {
+    setShowExport(false);
+    setStatus("Starting test run…");
+    const started = await importTutorial(markdown);
+    setStatus(started ? "Test run started" : "Test run failed");
+  }, [importTutorial, markdown]);
+
+  const stopTestRun = useCallback(async () => {
+    setStatus("Leaving test run…");
+    await exitTutorial();
+    setStatus("Back to authoring");
+  }, [exitTutorial]);
+
+  const tutorialStepLabel =
+    tutorial.totalSteps > 0
+      ? `step ${Math.min(tutorial.currentStep + 1, tutorial.totalSteps)}/${tutorial.totalSteps}`
+      : "step 1";
+
   return (
     <div className="app">
       <header className="topbar">
@@ -172,10 +203,29 @@ export default function App() {
             type="button"
             className="btn btn--primary"
             onClick={addStep}
-            disabled={busy || !ready}
+            disabled={busy || !ready || testing}
           >
             + Add step
           </button>
+          {testing ? (
+            <button type="button" className="btn" onClick={stopTestRun}>
+              Exit test
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn"
+              onClick={startTestRun}
+              disabled={busy || !ready || doc.steps.length === 0}
+              title={
+                doc.steps.length === 0
+                  ? "Add a step before running the tutorial"
+                  : "Run the tutorial in the embedded editor"
+              }
+            >
+              Test run
+            </button>
+          )}
           <button
             type="button"
             className="btn"
@@ -185,6 +235,24 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {testing ? (
+        <div className={`testBanner testBanner--${tutorial.phase}`}>
+          <span className="testBanner__label">
+            {tutorial.phase === "starting" ? "Starting test run…" : null}
+            {tutorial.phase === "running" ? `Testing ${tutorialStepLabel}` : null}
+            {tutorial.phase === "completed"
+              ? "Test run complete — the learner reached the end."
+              : null}
+            {tutorial.phase === "error"
+              ? `Test run failed: ${tutorial.error ?? "unknown error"}`
+              : null}
+          </span>
+          <button type="button" className="btn btn--small" onClick={stopTestRun}>
+            Back to authoring
+          </button>
+        </div>
+      ) : null}
 
       <div className="workspace">
         <div className="editorPane">
@@ -201,31 +269,13 @@ export default function App() {
 
         <aside className="authorPane">
           <div className="authorPane__head">
-            <label className="field">
-              <span className="field__label">Tutorial title</span>
-              <input
-                className="input"
-                value={doc.title}
-                placeholder="e.g. Flashing heart"
-                onChange={(e) =>
-                  updateDoc((current) => ({ ...current, title: e.target.value }))
-                }
-              />
-            </label>
-
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={doc.explicitHints}
-                onChange={(e) =>
-                  updateDoc((current) => ({
-                    ...current,
-                    explicitHints: e.target.checked,
-                  }))
-                }
-              />
-              <span>Show hints by default (@explicitHints)</span>
-            </label>
+            <TutorialSettings
+              doc={doc}
+              onTitleChange={(title) =>
+                updateDoc((current) => ({ ...current, title }))
+              }
+              onMetaChange={updateMeta}
+            />
           </div>
 
           <div className="authorPane__scroll">
@@ -236,6 +286,7 @@ export default function App() {
               onMove={moveStep}
               onDelete={deleteStep}
               onInsertAfter={insertAfter}
+              captureDisabled={testing}
             />
 
             {selectedStep ? (
@@ -244,6 +295,7 @@ export default function App() {
                 onChange={(patch) => updateStep(selectedStep.id, patch)}
                 onCapture={() => captureIntoStep(selectedStep.id)}
                 busy={busy}
+                captureDisabled={testing}
               />
             ) : (
               <div className="empty">
@@ -252,6 +304,11 @@ export default function App() {
                   : "Select a step to edit it."}
               </div>
             )}
+
+            <ChecksPanel
+              issues={issues}
+              onSelectStep={(id) => setSelectedId(id)}
+            />
           </div>
         </aside>
       </div>
