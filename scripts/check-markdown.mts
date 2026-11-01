@@ -9,6 +9,11 @@ import {
   CAPTION_SOFT_LIMIT,
 } from "../src/model/checks.ts";
 import { DEFAULT_META, type TutorialDoc } from "../src/model/types.ts";
+import {
+  dataUrlByteSize,
+  formatBytes,
+  isDataUrl,
+} from "../src/model/image.ts";
 
 const doc: TutorialDoc = {
   version: 2,
@@ -269,6 +274,79 @@ checks.push([
   "accepts https images on @showhint steps",
   checkTutorial(visibleImageDoc).every(
     (issue) => !issue.message.toLowerCase().includes("image"),
+  ),
+]);
+
+// --- Embedded (data URL) images ----------------------------------------
+
+checks.push([
+  "detects data URLs",
+  isDataUrl("data:image/png;base64,AAAA") && !isDataUrl("https://example.com/a.png"),
+]);
+checks.push([
+  "computes base64 byte size",
+  dataUrlByteSize("data:image/png;base64,AAAA") === 3 &&
+    dataUrlByteSize("data:image/png;base64,AA==") === 1 &&
+    dataUrlByteSize("https://example.com/a.png") === 0,
+]);
+checks.push(["formats bytes", formatBytes(2048) === "2 KB"]);
+
+const embeddedImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Embedded",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      title: "One",
+      imageUrl: "data:image/png;base64,AAAA",
+      modifier: "showhint",
+    },
+  ],
+};
+const embeddedMd = tutorialToMarkdown(embeddedImageDoc);
+checks.push([
+  "emits data URL images",
+  embeddedMd.includes("![One](data:image/png;base64,AAAA)"),
+]);
+
+const bigImageDoc: TutorialDoc = {
+  version: 2,
+  title: "Big embedded",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl:
+        "data:image/png;base64," +
+        "A".repeat(Math.ceil(((1024 * 1024) / 3) * 4) + 100),
+      modifier: "showhint",
+    },
+  ],
+};
+checks.push([
+  "flags embedded images over 1 MB",
+  checkTutorial(bigImageDoc).some((issue) =>
+    issue.message.includes("Embedded image"),
+  ),
+]);
+
+const embeddedHiddenDoc: TutorialDoc = {
+  version: 2,
+  title: "Hidden embedded",
+  meta: { ...DEFAULT_META },
+  steps: [
+    {
+      ...doc.steps[0],
+      imageUrl: "data:image/png;base64,AAAA",
+      modifier: "none",
+    },
+  ],
+};
+checks.push([
+  "tips about embedded images hidden behind the hint button",
+  checkTutorial(embeddedHiddenDoc).some((issue) =>
+    issue.message.includes("hint button"),
   ),
 ]);
 

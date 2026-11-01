@@ -1,4 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  dataUrlByteSize,
+  embedImageFile,
+  formatBytes,
+  isDataUrl,
+} from "../model/image";
 import {
   STEP_KINDS,
   STEP_MODIFIERS,
@@ -27,6 +33,32 @@ export function StepEditor({
     (option) => option.value === step.modifier,
   );
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState<string | undefined>();
+  const [dragging, setDragging] = useState(false);
+
+  const acceptFile = async (file: File | undefined) => {
+    if (!file) return;
+    setImageError(undefined);
+    setImageBusy(true);
+    try {
+      const dataUrl = await embedImageFile(file);
+      onChange({ imageUrl: dataUrl });
+    } catch (error) {
+      setImageError(
+        error instanceof Error
+          ? error.message
+          : "Could not process the image.",
+      );
+    } finally {
+      setImageBusy(false);
+    }
+  };
+
+  const openFilePicker = () => fileInputRef.current?.click();
+  const imageUrl = step.imageUrl.trim();
+
   return (
     <section className="editor">
       <label className="field">
@@ -50,20 +82,87 @@ export function StepEditor({
       </label>
 
       <div className="field">
-        <span className="field__label">Image URL</span>
+        <span className="field__label">Image</span>
+
+        <div
+          className={"dropzone" + (dragging ? " dropzone--active" : "")}
+          role="button"
+          tabIndex={0}
+          onClick={openFilePicker}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openFilePicker();
+            }
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            void acceptFile(event.dataTransfer.files[0]);
+          }}
+        >
+          <span className="dropzone__label">
+            {imageBusy
+              ? "Processing image…"
+              : "Drop an image here, or click to choose a file"}
+          </span>
+          <span className="dropzone__hint">
+            PNG, JPEG or GIF · scaled to max 800px wide · embedded in the
+            Markdown
+          </span>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif"
+          hidden
+          onChange={(event) => {
+            void acceptFile(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
+
         <input
           className="input"
-          value={step.imageUrl}
-          placeholder="https://raw.githubusercontent.com/…/intro.png"
+          value={isDataUrl(step.imageUrl) ? "" : step.imageUrl}
+          placeholder="…or paste an https:// image URL"
           onChange={(event) => onChange({ imageUrl: event.target.value })}
         />
-        <span className="field__hint">
-          Absolute https URL. Shown by @showhint / @showdialog, or behind the
-          hint button on normal steps.
-        </span>
-        {step.imageUrl.trim() ? (
-          <ImagePreview url={step.imageUrl.trim()} />
+
+        {imageError ? (
+          <span className="field__hint field__hint--error">{imageError}</span>
         ) : null}
+
+        {imageUrl ? (
+          <div className="imageField">
+            <ImagePreview url={imageUrl} />
+            <div className="imageField__meta">
+              <span className="field__hint">
+                {isDataUrl(imageUrl)
+                  ? `Embedded · ${formatBytes(dataUrlByteSize(imageUrl))}`
+                  : "External URL"}
+              </span>
+              <button
+                type="button"
+                className="btn btn--small"
+                onClick={() => onChange({ imageUrl: "" })}
+              >
+                Remove image
+              </button>
+            </div>
+          </div>
+        ) : (
+          <span className="field__hint">
+            Images are shown by @showhint / @showdialog, or behind the hint
+            button on normal steps.
+          </span>
+        )}
       </div>
 
       <div className="field">
@@ -164,7 +263,7 @@ function ImagePreview({ url }: { url: string }) {
   if (failed) {
     return (
       <span className="imagePreview imagePreview--error">
-        Preview failed to load — check the URL.
+        Preview failed to load — check the image.
       </span>
     );
   }

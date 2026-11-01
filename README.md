@@ -23,9 +23,9 @@ project's files (`main.ts`, `main.blocks`, …) whenever the workspace is saved.
 - **+ Add step** — reads the current workspace (`main.ts`, falling back to
   `main.blocks`) and appends a step with that code.
 - **Insert / move / delete** steps in any order.
-- **Edit each step's** title, description, image URL (absolute https),
-  block type (`blocks`, `template` or `ghost`), modifier (`@showhint`,
-  `@showdialog`), and accordion hints (`~hint … hint~`).
+- **Edit each step's** title, description, image (drop a file or paste an
+  https URL), block type (`blocks`, `template` or `ghost`), modifier
+  (`@showhint`, `@showdialog`), and accordion hints (`~hint … hint~`).
 - **Tutorial options** — toggle MakeCode metadata (`@explicitHints`, `@diffs`,
   `@hideIteration`, `@hideDone`, `@hideToolbox`, `@unifiedToolbox`).
 - **Test run** — runs the tutorial you just built inside the embedded MakeCode
@@ -113,11 +113,12 @@ GitHub Pages serves the `gh-pages` branch (with `.nojekyll`).
 - `@fullscreen` and `@unplugged` are deprecated by MakeCode; use `@showhint`
   and `@showdialog`. The Checks panel warns if an old modifier is pasted into
   a step.
-- **Images** are referenced by absolute https URL (e.g. a
-  `raw.githubusercontent.com` link). Relative `/static/…` paths only work in
-  official editor repositories, so the Checks panel warns about them. Images
-  are shown by `@showhint` / `@showdialog` steps, or behind the hint button on
-  normal steps.
+- **Images** can be dropped into the step (or pasted as an absolute https
+  URL). Dropped images are scaled to max 800px wide and embedded in the
+  Markdown as `data:` URLs, so the exported tutorial is self-contained.
+  Relative `/static/…` paths only work in official editor repositories, so the
+  Checks panel warns about them. Images are shown by `@showhint` /
+  `@showdialog` steps, or behind the hint button on normal steps.
 
 ## Project structure
 
