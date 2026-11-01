@@ -1,7 +1,6 @@
 import {
   createEmptyDoc,
   newStepId,
-  type InstructionIcon,
   type StepKind,
   type StepModifier,
   type TutorialDoc,
@@ -21,8 +20,7 @@ export function serializeDoc(doc: TutorialDoc): string {
  * panel keeps working if the schema grows.
  *
  * Version 1 documents stored `explicitHints` at the top level and had no
- * `meta`, `modifier`, `instructions` or `accordionHint` fields; those are
- * migrated here.
+ * `meta`, `modifier` or `accordionHint` fields; those are migrated here.
  */
 export function parseDoc(text: string | undefined): TutorialDoc | undefined {
   if (!text) return undefined;
@@ -79,21 +77,9 @@ function normalizeStep(
     modifier: STEP_MODIFIERS.includes(modifier as StepModifier)
       ? (modifier as StepModifier)
       : "none",
-    instructions: normalizeInstructions(raw.instructions),
     accordionHint:
       typeof raw.accordionHint === "string" ? raw.accordionHint : "",
   };
-}
-
-function normalizeInstructions(raw: unknown): InstructionIcon[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter(isRecord)
-    .map((item) => ({
-      icon: typeof item.icon === "string" ? item.icon : "",
-      text: typeof item.text === "string" ? item.text : "",
-    }))
-    .filter((item) => item.text.trim().length > 0 || item.icon.trim().length > 0);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

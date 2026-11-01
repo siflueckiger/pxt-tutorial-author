@@ -24,8 +24,8 @@ project's files (`main.ts`, `main.blocks`, …) whenever the workspace is saved.
   `main.blocks`) and appends a step with that code.
 - **Insert / move / delete** steps in any order.
 - **Edit each step's** title, description, block type (`blocks`, `template` or
-  `ghost`), modifier (`@showhint`, `@showdialog`), instruction bullets with
-  icons (`- :loops: …`), and accordion hints (`~hint … hint~`).
+  `ghost`), modifier (`@showhint`, `@showdialog`), and accordion hints
+  (`~hint … hint~`).
 - **Tutorial options** — toggle MakeCode metadata (`@explicitHints`, `@diffs`,
   `@hideIteration`, `@hideDone`, `@hideToolbox`, `@unifiedToolbox`).
 - **Test run** — runs the tutorial you just built inside the embedded MakeCode

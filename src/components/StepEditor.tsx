@@ -1,5 +1,4 @@
 import {
-  ICON_SUGGESTIONS,
   STEP_KINDS,
   STEP_MODIFIERS,
   type StepKind,
@@ -26,31 +25,6 @@ export function StepEditor({
   const modifier = STEP_MODIFIERS.find(
     (option) => option.value === step.modifier,
   );
-
-  const updateInstruction = (
-    index: number,
-    patch: { icon?: string; text?: string },
-  ) => {
-    onChange({
-      instructions: step.instructions.map((instruction, current) =>
-        current === index ? { ...instruction, ...patch } : instruction,
-      ),
-    });
-  };
-
-  const addInstruction = () => {
-    onChange({
-      instructions: [...step.instructions, { icon: "loops", text: "" }],
-    });
-  };
-
-  const removeInstruction = (index: number) => {
-    onChange({
-      instructions: step.instructions.filter(
-        (_, current) => current !== index,
-      ),
-    });
-  };
 
   return (
     <section className="editor">
@@ -89,68 +63,16 @@ export function StepEditor({
             </option>
           ))}
         </select>
-        <span className="field__hint">{modifier?.hint}</span>
-        <span className="field__note">
-          @fullscreen and @unplugged were renamed to @showhint and @showdialog.
-        </span>
-      </div>
-
-      <div className="field">
-        <div className="field__row">
-          <span className="field__label">Instruction bullets</span>
-          <button
-            type="button"
-            className="btn btn--small"
-            onClick={addInstruction}
-          >
-            + Instruction
-          </button>
-        </div>
-
-        {step.instructions.length === 0 ? (
-          <span className="field__hint">
-            Optional scannable bullets with a leading icon, e.g. “loops” or
-            “mouse pointer”.
+        <div className="field__callout">
+          <span className="field__calloutTitle">
+            What does {modifier?.label.split(" — ")[0]} do?
           </span>
-        ) : (
-          <ul className="instructions">
-            {step.instructions.map((instruction, index) => (
-              <li key={index} className="instructions__row">
-                <input
-                  className="input instructions__icon"
-                  value={instruction.icon}
-                  placeholder="icon"
-                  list="tutorial-icon-suggestions"
-                  onChange={(event) =>
-                    updateInstruction(index, { icon: event.target.value })
-                  }
-                />
-                <input
-                  className="input"
-                  value={instruction.text}
-                  placeholder="Instruction text"
-                  onChange={(event) =>
-                    updateInstruction(index, { text: event.target.value })
-                  }
-                />
-                <button
-                  type="button"
-                  className="iconBtn iconBtn--danger"
-                  title="Remove instruction"
-                  onClick={() => removeInstruction(index)}
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <datalist id="tutorial-icon-suggestions">
-          {ICON_SUGGESTIONS.map((icon) => (
-            <option key={icon} value={icon} />
-          ))}
-        </datalist>
+          <span className="field__calloutText">{modifier?.hint}</span>
+        </div>
+        <span className="field__note">
+          MakeCode renamed @fullscreen to @showhint and @unplugged to
+          @showdialog.
+        </span>
       </div>
 
       <label className="field">

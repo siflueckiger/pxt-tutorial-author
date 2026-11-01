@@ -22,7 +22,6 @@ const doc: TutorialDoc = {
       code: "basic.showIcon(IconNames.Heart)",
       kind: "blocks",
       modifier: "none",
-      instructions: [{ icon: "basic", text: "From the Basic category" }],
       accordionHint: "Why a heart?\nIt is a friendly icon.",
     },
     {
@@ -32,7 +31,6 @@ const doc: TutorialDoc = {
       code: "basic.showIcon(IconNames.Heart)\nbasic.pause(200)",
       kind: "blocks",
       modifier: "showhint",
-      instructions: [],
       accordionHint: "",
     },
     {
@@ -42,7 +40,6 @@ const doc: TutorialDoc = {
       code: "basic.pause(100)",
       kind: "ghost",
       modifier: "none",
-      instructions: [],
       accordionHint: "",
     },
     {
@@ -52,7 +49,6 @@ const doc: TutorialDoc = {
       code: "basic.showIcon(IconNames.SmallHeart)",
       kind: "template",
       modifier: "none",
-      instructions: [],
       accordionHint: "",
     },
   ],
@@ -69,10 +65,6 @@ const checks: [string, boolean][] = [
   ["does not emit disabled metadata", !md.includes("@hideIteration")],
   ["has step heading", md.includes("## Make it flash\n")],
   ["has step modifier", md.includes("## Pause between icons @showhint")],
-  [
-    "has icon bullet",
-    md.includes("- :basic: From the Basic category"),
-  ],
   [
     "has accordion with indented continuation",
     md.includes("~hint Why a heart?\n  It is a friendly icon.\nhint~"),
@@ -118,7 +110,6 @@ checks.push(["no diff for first step", diffCode(undefined, "x") === undefined]);
 const captionShort = captionText({
   ...doc.steps[0],
   description: "Short instruction.",
-  instructions: [],
 });
 checks.push(["caption text includes description", captionShort === "Short instruction."]);
 
@@ -130,7 +121,6 @@ const longCaptionDoc: TutorialDoc = {
     {
       ...doc.steps[0],
       description: "x".repeat(CAPTION_SOFT_LIMIT + 10),
-      instructions: [],
     },
   ],
 };
@@ -187,7 +177,6 @@ const cleanDoc: TutorialDoc = {
       code: "basic.showIcon(IconNames.Heart)",
       kind: "blocks",
       modifier: "none",
-      instructions: [],
       accordionHint: "",
     },
   ],

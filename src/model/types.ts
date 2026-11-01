@@ -3,13 +3,6 @@ export type StepKind = "blocks" | "template" | "ghost";
 /** Step modifier rendered as `@showhint` / `@showdialog` in the step heading. */
 export type StepModifier = "none" | "showhint" | "showdialog";
 
-/** A single instruction bullet, optionally prefixed with an icon. */
-export interface InstructionIcon {
-  /** Semantic UI icon name without surrounding colons (e.g. `loops`). */
-  icon: string;
-  text: string;
-}
-
 /** Tutorial-wide metadata emitted as `### @KEY VALUE` lines. */
 export interface TutorialMeta {
   explicitHints: boolean;
@@ -39,8 +32,6 @@ export interface TutorialStep {
   kind: StepKind;
   /** Special behavior for this step. */
   modifier: StepModifier;
-  /** Instruction bullets shown with leading icons. */
-  instructions: InstructionIcon[];
   /** Optional accordion hint (`~hint … hint~`). The first line is the summary. */
   accordionHint: string;
 }
@@ -75,48 +66,21 @@ export const STEP_MODIFIERS: {
   label: string;
   hint: string;
 }[] = [
-  { value: "none", label: "None", hint: "Normal step." },
+  {
+    value: "none",
+    label: "None — normal step",
+    hint: "Shown in the usual tutorial flow: short text in the caption, the rest in the hint.",
+  },
   {
     value: "showhint",
-    label: "@showhint",
-    hint: "Show the step content in an overlay when the step is reached.",
+    label: "@showhint — overlay",
+    hint: "When learners reach this step, its content pops up in an overlay above the editor instead of the caption. Works best for a dramatic introduction with an image; with plain text it mainly looks like an emphasised message.",
   },
   {
     value: "showdialog",
-    label: "@showdialog",
-    hint: "Show the step in a dialog, then skip to the next step automatically.",
+    label: "@showdialog — intro dialog",
+    hint: "Shown in a dialog, then the tutorial automatically moves to the next step. Use it for an introduction before the hands-on steps.",
   },
-];
-
-/**
- * Common icons for instruction bullets. Toolbox category names (`loops`,
- * `input`, …) and a few Semantic UI icons used by MakeCode tutorials.
- */
-export const ICON_SUGGESTIONS: string[] = [
-  "basic",
-  "input",
-  "music",
-  "led",
-  "radio",
-  "loops",
-  "logic",
-  "variables",
-  "math",
-  "functions",
-  "arrays",
-  "text",
-  "game",
-  "images",
-  "pins",
-  "serial",
-  "control",
-  "mouse pointer",
-  "binoculars",
-  "lightbulb",
-  "computer",
-  "paper plane",
-  "tree",
-  "lightning",
 ];
 
 /** Deprecated in the MakeCode docs; surfaced by the checks panel. */
@@ -143,7 +107,6 @@ export function createStep(
     code: "",
     kind: "blocks",
     modifier: "none",
-    instructions: [],
     accordionHint: "",
     ...overrides,
   };

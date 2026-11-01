@@ -38,12 +38,6 @@ export function tutorialToMarkdown(doc: TutorialDoc): string {
       lines.push("");
     }
 
-    const instructions = instructionLines(step);
-    if (instructions.length > 0) {
-      lines.push(...instructions);
-      lines.push("");
-    }
-
     const accordion = accordionLines(step.accordionHint);
     if (accordion.length > 0) {
       lines.push(...accordion);
@@ -67,17 +61,6 @@ function headingFor(step: TutorialStep, index: number): string {
   return step.modifier && step.modifier !== "none"
     ? `${title} @${step.modifier}`
     : title;
-}
-
-function instructionLines(step: TutorialStep): string[] {
-  return (step.instructions ?? [])
-    .map((instruction) => {
-      const text = instruction.text.trim();
-      if (!text) return "";
-      const icon = instruction.icon.trim().replace(/^:+|:+$/g, "");
-      return icon ? `- :${icon}: ${text}` : `- ${text}`;
-    })
-    .filter((line) => line.length > 0);
 }
 
 function accordionLines(text: string): string[] {

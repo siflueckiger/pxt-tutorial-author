@@ -61,12 +61,9 @@ export function diffCode(
   return { added, removed };
 }
 
-/** The text shown in the tutorial caption: description plus instruction bullets. */
+/** The text shown in the tutorial caption: the step description. */
 export function captionText(step: TutorialStep): string {
-  return [step.description, ...step.instructions.map((item) => item.text)]
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return step.description.replace(/\s+/g, " ").trim();
 }
 
 function sameCode(a: TutorialStep, b: TutorialStep): boolean {
@@ -126,8 +123,8 @@ export function checkTutorial(doc: TutorialDoc): TutorialIssue[] {
       );
     }
 
-    if (!step.description.trim() && step.instructions.length === 0) {
-      add("tip", "This step has no instructions.", step.id);
+    if (!step.description.trim()) {
+      add("tip", "This step has no description.", step.id);
     }
 
     if (step.kind === "blocks" && !step.code.trim()) {
