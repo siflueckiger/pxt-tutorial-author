@@ -1,0 +1,20 @@
+{
+  "name": "pxt-tutorial-author",
+  "description": "Author MakeCode tutorials by snapshotting the blocks in the editor.",
+  "version": "0.0.1",
+  "license": "MIT",
+  "dependencies": {
+    "core": "*"
+  },
+  "files": [
+    "README.md",
+    "main.ts"
+  ],
+  "public": true,
+  "extension": {
+    "namespace": "tutorialauthor",
+    "label": "Tutorial Author",
+    "url": "https://siflueckiger.github.io/pxt-tutorial-author/",
+    "localUrl": "http://127.0.0.1:5173/"
+  }
+}
